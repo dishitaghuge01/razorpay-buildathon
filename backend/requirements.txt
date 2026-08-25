@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+supabase
+networkx
+python-louvain
+scikit-learn
+liboqs-python
+numpy
+pandas
+pydantic
