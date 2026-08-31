@@ -60,10 +60,10 @@ def test_forge_tampered_proof_false():
     }
 
     public_key_b64, secret_key_b64 = generate_keypair()
-    original_sig = sign_transaction(payload, secret_key=secret_key_b64)
-    tampered = forge_tampered_proof(payload)
+    sign_transaction(payload, secret_key=secret_key_b64)
+    forged_signature_b64 = forge_tampered_proof(payload)
 
-    assert verify_transaction(tampered, original_sig, public_key_b64) is False
+    assert verify_transaction(payload, forged_signature_b64, public_key_b64) is False
 
 
 def test_malformed_signature_input_false_without_raising():

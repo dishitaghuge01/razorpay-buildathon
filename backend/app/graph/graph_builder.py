@@ -1,5 +1,7 @@
 """Edge computation + networkx snapshot builder."""
 
+from __future__ import annotations
+
 import math
 from collections import defaultdict
 
@@ -91,7 +93,6 @@ def build_edges_for_tick(run_id: str, tick: int) -> list[dict]:
     tx_response = supabase.table("transactions").select("id, buyer_account_id, merchant_id, tick").eq("run_id", run_id).lte("tick", tick).execute()
     tx_rows = getattr(tx_response, "data", tx_response) or []
     review_response = supabase.table("reviews").select("id, reviewer_account_id, merchant_id, tick").eq("run_id", run_id).lte("tick", tick).execute()
-    review_rows = getattr(review_response, "data", review_rows) if isinstance(getattr(review_response, "data", review_response), list) else getattr(review_response, "data", review_response) or []
     review_rows = getattr(review_response, "data", review_response) or []
 
     merchant_events: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
@@ -139,7 +140,7 @@ def build_edges_for_tick(run_id: str, tick: int) -> list[dict]:
     return inserted
 
 
-def get_graph_snapshot(run_id: str, tick: int) -> "networkx.Graph":
+def get_graph_snapshot(run_id: str, tick: int) -> nx.Graph:
     """Builds an in-memory networkx.Graph from the edges + accounts
     tables for run_id at <= tick. Node attributes: account_type
     (ground truth, used ONLY for the UI's ground-truth reveal toggle,

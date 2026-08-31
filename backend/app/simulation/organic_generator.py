@@ -2,6 +2,7 @@
 
 import random
 import uuid
+from functools import lru_cache
 from typing import Any
 
 try:
@@ -11,6 +12,13 @@ except Exception:
     from app.config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+@lru_cache(maxsize=1)
+def _organic_keypair() -> tuple[str, str]:
+    from app.pqc.signer import generate_keypair
+
+    return generate_keypair()
 
 
 def _extract_first_row(response: Any) -> dict:
@@ -82,16 +90,15 @@ def generate_organic_transaction(run_id: str, account_id: str, merchant_id: str,
     try:
         from app.pqc.signer import sign_transaction  # type: ignore
 
-        signature = sign_transaction(payload, secret_key=b"organic-sim-secret")
+        public_key_b64, secret_key_b64 = _organic_keypair()
+        signature = sign_transaction(payload, secret_key=secret_key_b64)
         payload["proof_signature"] = signature
-        payload["proof_public_key"] = f"org-pk-{uuid.uuid4().hex[:16]}"
+        payload["proof_public_key"] = public_key_b64
         payload["proof_valid"] = True
-        # TODO: remove this fallback once pqc/signer.py is implemented
     except Exception:
         payload["proof_signature"] = None
         payload["proof_public_key"] = None
         payload["proof_valid"] = None
-        # TODO: remove this fallback once pqc/signer.py is implemented
 
     response = supabase.table("transactions").insert(payload).execute()
     return _extract_first_row(response)

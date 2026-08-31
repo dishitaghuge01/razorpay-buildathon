@@ -78,14 +78,16 @@ def verify_transaction(payload: Mapping[str, Any], signature_b64: str, public_ke
         return False
 
 
-def forge_tampered_proof(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Create a tampered payload that should fail verification."""
-    tampered = dict(payload)
-    if "amount" in tampered:
-        tampered["amount"] = round(float(tampered["amount"]) + 0.01, 2)
-    elif "status" in tampered:
-        tampered["status"] = "refund_requested" if tampered.get("status") != "refund_requested" else "completed"
-    else:
-        tampered["tick"] = int(tampered.get("tick", 0)) + 1
-    return tampered
+def forge_tampered_proof(payload: Mapping[str, Any]) -> str:
+    """DEMO-ONLY. Signs canonical_payload(payload) with a freshly generated,
+    unrelated keypair (simulating a forged/replayed proof from an attacker who
+    does not hold the real secret key). Returns the forged signature as a base64
+    string, which should fail verify_transaction() against the real public key."""
+    sig = oqs.Signature(ALGORITHM)
+    try:
+        sig.generate_keypair()
+        forged_signature = sig.sign(canonical_payload(payload))
+        return base64.b64encode(forged_signature).decode("ascii")
+    finally:
+        sig.free()
 

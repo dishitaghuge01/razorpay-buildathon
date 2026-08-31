@@ -1,5 +1,7 @@
 """Louvain community detection -> cluster candidates."""
 
+from __future__ import annotations
+
 import networkx as nx
 
 try:
@@ -10,7 +12,7 @@ except Exception:  # pragma: no cover
 from app.graph.graph_builder import get_graph_snapshot
 
 
-def detect_communities(graph: "networkx.Graph", algorithm: str = "louvain") -> dict[str, int]:
+def detect_communities(graph: nx.Graph, algorithm: str = "louvain") -> dict[str, int]:
     """Returns {account_id: community_id}. Uses python-louvain
     (community_louvain.best_partition)."""
     if community_louvain is None:

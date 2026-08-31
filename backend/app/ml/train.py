@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from app.db import supabase
 from app.graph.community_detection import extract_cluster_candidates
 from app.graph.features import build_feature_vector
+from app.graph.graph_builder import build_edges_for_tick
 
 
 # TODO: replace with real organic_generator/attack_strategies once Track A lands
@@ -36,6 +37,7 @@ def generate_training_population(n_organic=2000, n_sybil_rings=40,
     # from the true ring membership, but the feature vector intentionally never reads
     # ground_truth_ring_id directly.
     rows: list[dict] = []
+    max_tick = max(30, n_sybil_rings, n_collusion_rings, n_whitewash)
     for _ in range(n_organic):
         account_payload = {
             "run_id": run_id,
@@ -68,6 +70,9 @@ def generate_training_population(n_organic=2000, n_sybil_rings=40,
                 "rating": int(np.random.choice([4, 5], p=[0.35, 0.65])),
                 "tick": int(np.random.randint(0, 30)),
             }).execute()
+
+    for tick in range(max_tick + 1):
+        build_edges_for_tick(run_id, tick)
 
     for ring_idx in range(n_sybil_rings):
         ring = supabase.table("rings").insert({
@@ -187,7 +192,24 @@ def generate_training_population(n_organic=2000, n_sybil_rings=40,
             "tick": ring_idx,
         })
 
-    cluster_candidates = extract_cluster_candidates(run_id, tick=max(0, int(np.random.randint(0, 30))))
+    organic_accounts = supabase.table("accounts").select("id").eq("run_id", run_id).eq("account_type", "organic").execute().data
+    organic_ids = [row["id"] for row in organic_accounts]
+    negative_target = max(80, min(120, n_sybil_rings + n_collusion_rings + n_whitewash))
+    negative_groups = 0
+    while negative_groups < negative_target and len(organic_ids) >= 3:
+        group_size = int(np.random.randint(3, min(8, len(organic_ids)) + 1))
+        group = sorted(np.random.choice(organic_ids, size=group_size, replace=False).tolist())
+        tick = int(np.random.randint(0, max_tick + 1))
+        feature_vector = build_feature_vector({"member_account_ids": group, "tick": tick}, run_id, tick)
+        rows.append({
+            "member_account_ids": group,
+            "is_ring": False,
+            "feature_vector": feature_vector,
+            "tick": tick,
+        })
+        negative_groups += 1
+
+    cluster_candidates = extract_cluster_candidates(run_id, tick=max_tick)
     for cluster in cluster_candidates:
         member_ids = cluster["member_account_ids"]
         feature_vector = build_feature_vector(cluster, run_id, tick=cluster["tick"])
